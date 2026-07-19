@@ -1,0 +1,6 @@
+[core]
+    remote = storage
+['remote "storage"']
+    url = s3://car-price-predictor
+    endpointurl = https://0ddc8646904df218d27d6d20a3b9ed34.r2.cloudflarestorage.com
+    region = auto

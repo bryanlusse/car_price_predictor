@@ -7,7 +7,7 @@ name = "car-price-predictor"
 version = "0.1.0"
 description = "A machine learning model to predict used car prices from listing data."
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.12,<3.14"
 authors = [
     { name = "Bryan Lusse", email = "bryanlusse@outlook.com" },
 ]
@@ -27,13 +27,25 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+pipeline = [
+    "dvc[s3]>=3.0",
+    "mlflow>=2.14",
+    "boto3>=1.34",
+]
 dev = [
     "pytest>=8.0",
     "ruff>=0.5",
     "mypy>=1.10",
     "jupyter>=1.0",
     "pre-commit>=4.6.0",
+    "dvc[s3]>=3.0",
+    "mlflow>=2.14",
+    "boto3>=1.34",
 ]
+
+[project.scripts]
+train-model = "model_training.train:main"
+sweep-models = "model_training.sweep:main"
 
 [project.urls]
 Homepage = "https://github.com/bryanlusse/car_price_predictor"
