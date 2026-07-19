@@ -12,12 +12,21 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 # MLFlow setup
 MLFLOW_EXPERIMENT_NAME = "car_price_predictor"
 MLFLOW_ARTIFACT_URI = os.environ.get(
     "MLFLOW_ARTIFACT_URI", "s3://car-price-predictor/mlflow-artifacts"
 )
+
+SUPPORTED_MODEL_TYPES: list[str] = [
+    "linear_regression",
+    "ridge",
+    "lasso",
+    "random_forest",
+    "gradient_boosting",
+]
 
 # Repo root = two levels up from this file (model_training/config.py -> repo/).
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -71,6 +80,9 @@ class TrainingConfig:
     target: str = TARGET
     numeric_features: list[str] = field(default_factory=lambda: list(NUMERIC_FEATURES))
     categorical_features: list[str] = field(default_factory=lambda: list(CATEGORICAL_FEATURES))
+
+    model_type: str = "linear_regression"
+    model_params: dict[str, Any] = field(default_factory=dict)
 
     # Only keep listings priced in this currency (the dataset mixes a few).
     currency: str = "EUR"

@@ -13,6 +13,7 @@ failure so a pipeline can gate on it.
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 import logging
 import sys
@@ -27,8 +28,9 @@ import pandas as pd
 import sklearn
 from mlflow.tracking import MlflowClient
 from sklearn.compose import ColumnTransformer
+from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
 from sklearn.impute import SimpleImputer
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import Lasso, LinearRegression, Ridge
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
@@ -42,6 +44,14 @@ from model_training.config import (
 )
 
 logger = logging.getLogger("car_price_predictor.train")
+
+MODEL_REGISTRY: dict[str, type] = {
+    "linear_regression": LinearRegression,
+    "ridge": Ridge,
+    "lasso": Lasso,
+    "random_forest": RandomForestRegressor,
+    "gradient_boosting": GradientBoostingRegressor,
+}
 
 
 def _read_raw(config: TrainingConfig) -> pd.DataFrame:
@@ -98,6 +108,14 @@ def prepare_data(df: pd.DataFrame, config: TrainingConfig) -> pd.DataFrame:
     return df
 
 
+def _build_model(config: TrainingConfig):
+    model_cls = MODEL_REGISTRY[config.model_type]
+    params = dict(config.model_params)
+    if "random_state" in inspect.signature(model_cls).parameters:
+        params.setdefault("random_state", config.random_state)
+    return model_cls(**params)
+
+
 def build_pipeline(config: TrainingConfig) -> Pipeline:
     """Assemble the preprocessing + linear-regression pipeline.
 
@@ -132,7 +150,7 @@ def build_pipeline(config: TrainingConfig) -> Pipeline:
     return Pipeline(
         steps=[
             ("preprocessor", preprocessor),
-            ("model", LinearRegression()),
+            ("model", _build_model(config=config)),
         ]
     )
 
@@ -211,6 +229,8 @@ def _parse_args(argv: list[str] | None = None) -> TrainingConfig:
     parser.add_argument("--currency", default=defaults.currency)
     parser.add_argument("--min-price", type=float, default=defaults.min_price)
     parser.add_argument("--max-price", type=float, default=defaults.max_price)
+    parser.add_argument("--model-type", type=str, default=defaults.model_type)
+    parser.add_argument("--model-params", type=json.loads, default=defaults.model_params)
     args = parser.parse_args(argv)
     return TrainingConfig(
         data_path=args.data_path,
@@ -220,6 +240,8 @@ def _parse_args(argv: list[str] | None = None) -> TrainingConfig:
         currency=args.currency,
         min_price=args.min_price,
         max_price=args.max_price,
+        model_type=args.model_type,
+        model_params=args.model_params,
     )
 
 
