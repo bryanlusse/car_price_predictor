@@ -1,4 +1,6 @@
-"""Smoke tests to verify the package imports and CI is wired up correctly."""
+"""Smoke tests: the package imports and exposes what CI expects."""
+
+from __future__ import annotations
 
 import model_training
 

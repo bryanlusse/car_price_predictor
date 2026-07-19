@@ -27,13 +27,21 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Data-versioning + training tooling needed by the CD pipeline (not by the runtime lib).
+pipeline = [
+    "dvc[s3]>=3.0",
+]
 dev = [
     "pytest>=8.0",
     "ruff>=0.5",
     "mypy>=1.10",
     "jupyter>=1.0",
     "pre-commit>=4.6.0",
+    "dvc[s3]>=3.0",
 ]
+
+[project.scripts]
+train-model = "model_training.train:main"
 
 [project.urls]
 Homepage = "https://github.com/bryanlusse/car_price_predictor"

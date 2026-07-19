@@ -236,3 +236,10 @@ $RECYCLE.BIN/
 *.lnk
 
 # End of https://www.toptal.com/developers/gitignore/api/macos,python,windows
+
+# --- Project-specific ---
+# Training artifacts produced by `train-model` (regenerated; version with DVC if needed).
+/models/
+
+# DVC keeps the real data out of git; the .dvc pointer files ARE committed.
+# (data/.gitignore and .dvc/.gitignore are created by DVC automatically.)
