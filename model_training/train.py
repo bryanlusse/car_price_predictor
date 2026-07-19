@@ -1,4 +1,5 @@
-"""Train a linear-regression model to predict used-car prices.
+"""Train a car-price prediction model (linear regression, ridge, lasso, random forest,
+or gradient boosting -- see --model-type).
 
 Designed to be run both interactively and as a non-interactive CD step:
 
@@ -109,7 +110,10 @@ def prepare_data(df: pd.DataFrame, config: TrainingConfig) -> pd.DataFrame:
 
 
 def _build_model(config: TrainingConfig):
-    model_cls = MODEL_REGISTRY[config.model_type]
+    try:
+        model_cls = MODEL_REGISTRY[config.model_type]
+    except KeyError as err:
+        raise ValueError("Unknown model_type") from err
     params = dict(config.model_params)
     if "random_state" in inspect.signature(model_cls).parameters:
         params.setdefault("random_state", config.random_state)
@@ -222,15 +226,65 @@ def train(config: TrainingConfig) -> dict:
 def _parse_args(argv: list[str] | None = None) -> TrainingConfig:
     defaults = TrainingConfig()
     parser = argparse.ArgumentParser(description="Train the car-price linear-regression model.")
-    parser.add_argument("--data-path", type=Path, default=defaults.data_path)
-    parser.add_argument("--output-dir", type=Path, default=defaults.output_dir)
-    parser.add_argument("--test-size", type=float, default=defaults.test_size)
-    parser.add_argument("--random-state", type=int, default=defaults.random_state)
-    parser.add_argument("--currency", default=defaults.currency)
-    parser.add_argument("--min-price", type=float, default=defaults.min_price)
-    parser.add_argument("--max-price", type=float, default=defaults.max_price)
-    parser.add_argument("--model-type", type=str, default=defaults.model_type)
-    parser.add_argument("--model-params", type=json.loads, default=defaults.model_params)
+    parser.add_argument(
+        "--data-path",
+        type=Path,
+        default=defaults.data_path,
+        help="Path to the raw AutoScout24 CSV. Must be present locally "
+        "(run `dvc pull` first if it isn't).",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=defaults.output_dir,
+        help="Directory to write model.joblib, metrics.json, and metadata.json into. "
+        "Created if it doesn't exist.",
+    )
+    parser.add_argument(
+        "--test-size",
+        type=float,
+        default=defaults.test_size,
+        help="Fraction of rows held out for the test split, e.g. 0.2 = 20%% test / 80%% train.",
+    )
+    parser.add_argument(
+        "--random-state",
+        type=int,
+        default=defaults.random_state,
+        help="Seed controlling the train/test split and, where supported, the model's "
+        "own randomness (e.g. RandomForestRegressor). Fix this to keep runs reproducible.",
+    )
+    parser.add_argument(
+        "--currency",
+        default=defaults.currency,
+        help="Only listings priced in this currency are kept (the raw dataset mixes a few).",
+    )
+    parser.add_argument(
+        "--min-price",
+        type=float,
+        default=defaults.min_price,
+        help="Drop listings priced below this (guards against broken/placeholder prices).",
+    )
+    parser.add_argument(
+        "--max-price",
+        type=float,
+        default=defaults.max_price,
+        help="Drop listings priced above this (guards against extreme outliers).",
+    )
+    parser.add_argument(
+        "--model-type",
+        type=str,
+        default=defaults.model_type,
+        choices=sorted(MODEL_REGISTRY),
+        help="Which estimator to train. See MODEL_REGISTRY for the full mapping.",
+    )
+    parser.add_argument(
+        "--model-params",
+        type=json.loads,
+        default=defaults.model_params,
+        help="Hyperparameters for the chosen --model-type, as a JSON object, e.g. "
+        '\'{"alpha": 1.0}\' for ridge/lasso or \'{"n_estimators": 300, "max_depth": 8}\' '
+        "for the tree ensembles. Unset params fall back to sklearn's own defaults.",
+    )
     args = parser.parse_args(argv)
     return TrainingConfig(
         data_path=args.data_path,
