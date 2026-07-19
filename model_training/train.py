@@ -21,9 +21,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import joblib
+import mlflow
 import numpy as np
 import pandas as pd
 import sklearn
+from mlflow.tracking import MlflowClient
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LinearRegression
@@ -32,7 +34,12 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
-from model_training.config import AUXILIARY_COLUMNS, TrainingConfig
+from model_training.config import (
+    AUXILIARY_COLUMNS,
+    MLFLOW_ARTIFACT_URI,
+    MLFLOW_EXPERIMENT_NAME,
+    TrainingConfig,
+)
 
 logger = logging.getLogger("car_price_predictor.train")
 
@@ -50,6 +57,14 @@ def _read_raw(config: TrainingConfig) -> pd.DataFrame:
     df = pd.read_csv(config.data_path, usecols=usecols, low_memory=False)
     logger.info("Loaded %d raw rows", len(df))
     return df
+
+
+def _get_or_create_experiment(name: str, artifact_location: str) -> str:
+    client = MlflowClient()
+    experiment = client.get_experiment_by_name(name)
+    if experiment is not None:
+        return experiment.experiment_id
+    return client.create_experiment(name, artifact_location=artifact_location)
 
 
 def prepare_data(df: pd.DataFrame, config: TrainingConfig) -> pd.DataFrame:
@@ -145,18 +160,21 @@ def train(config: TrainingConfig) -> dict:
         X, y, test_size=config.test_size, random_state=config.random_state
     )
 
-    pipeline = build_pipeline(config)
-    logger.info("Fitting model on %d rows", len(X_train))
-    pipeline.fit(X_train, y_train)
+    experiment_id = _get_or_create_experiment(MLFLOW_EXPERIMENT_NAME, MLFLOW_ARTIFACT_URI)
+    with mlflow.start_run(experiment_id=experiment_id):
+        mlflow.log_params({k: str(v) for k, v in asdict(config).items()})
 
-    train_metrics = evaluate(pipeline, X_train, y_train)
-    test_metrics = evaluate(pipeline, X_test, y_test)
-    logger.info(
-        "Test metrics -> MAE: %.0f  RMSE: %.0f  R2: %.3f",
-        test_metrics["mae"],
-        test_metrics["rmse"],
-        test_metrics["r2"],
-    )
+        pipeline = build_pipeline(config)
+        pipeline.fit(X_train, y_train)
+
+        train_metrics = evaluate(pipeline, X_train, y_train)
+        test_metrics = evaluate(pipeline, X_test, y_test)
+        mlflow.log_metrics({f"train_{k}": v for k, v in train_metrics.items()})
+        mlflow.log_metrics({f"test_{k}": v for k, v in test_metrics.items()})
+
+        mlflow.sklearn.log_model(
+            pipeline, "model", serialization_format=mlflow.sklearn.SERIALIZATION_FORMAT_PICKLE
+        )
 
     config.output_dir.mkdir(parents=True, exist_ok=True)
     model_path = config.output_dir / "model.joblib"

@@ -9,8 +9,15 @@ code.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
+
+# MLFlow setup
+MLFLOW_EXPERIMENT_NAME = "car_price_predictor"
+MLFLOW_ARTIFACT_URI = os.environ.get(
+    "MLFLOW_ARTIFACT_URI", "s3://car-price-predictor/mlflow-artifacts"
+)
 
 # Repo root = two levels up from this file (model_training/config.py -> repo/).
 REPO_ROOT = Path(__file__).resolve().parents[1]

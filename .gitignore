@@ -243,3 +243,6 @@ $RECYCLE.BIN/
 
 # DVC keeps the real data out of git; the .dvc pointer files ARE committed.
 # (data/.gitignore and .dvc/.gitignore are created by DVC automatically.)
+
+# MLflow
+mlflow.db
