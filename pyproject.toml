@@ -1,0 +1,55 @@
+[project]
+name = "car-price-predictor"
+version = "0.1.0"
+description = "A machine learning model to predict used car prices from listing data."
+readme = "README.md"
+requires-python = ">=3.14"
+license = {}
+authors = [
+    { name = "Bryan Lusse", email = "bryanlusse@outlook.com" },
+]
+keywords = ["machine-learning", "regression", "car-price", "scikit-learn"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "scikit-learn>=1.3",
+    "matplotlib>=3.7",
+    "seaborn>=0.12",
+    "joblib>=1.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "jupyter>=1.0",
+    "pre-commit>=4.6.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/bryanlusse/car_price_predictor"
+Repository = "https://github.com/bryanlusse/car_price_predictor"
+
+[tool.hatch.build.targets.wheel]
+packages = ["model_training"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.6.0",
+]
