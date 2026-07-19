@@ -1,10 +1,13 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "car-price-predictor"
 version = "0.1.0"
 description = "A machine learning model to predict used car prices from listing data."
 readme = "README.md"
 requires-python = ">=3.14"
-license = {}
 authors = [
     { name = "Bryan Lusse", email = "bryanlusse@outlook.com" },
 ]
@@ -48,8 +51,3 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-
-[dependency-groups]
-dev = [
-    "pre-commit>=4.6.0",
-]
