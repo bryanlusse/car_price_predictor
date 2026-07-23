@@ -41,7 +41,7 @@ jobs:
 
       - name: Train, evaluate, and gate
         run: |
-          python -m model_training.train \
+          uv run python -m model_training.train \
             --config model_training/champion.yaml \
             --data-path data/processed/cars.csv \
             --output-dir artifacts/model \
@@ -51,7 +51,7 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          python -m model_registry.publish \
+          uv run python -m model_registry.publish \
             --model-dir artifacts/model \
             --repo-id ${{ vars.HF_MODEL_REPO_ID }}
 
