@@ -40,6 +40,10 @@ jobs:
           uv run dvc pull model_training/data/autoscout24_dataset_20251108.csv.dvc
 
       - name: Train, evaluate, and gate
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          MLFLOW_S3_ENDPOINT_URL: ${{ vars.MLFLOW_S3_ENDPOINT_URL }}
         run: |
           uv run python -m model_training.train \
             --config model_training/champion.yaml \
@@ -47,7 +51,7 @@ jobs:
             --output-dir artifacts/model \
             --rmse-gate ${{ vars.RMSE_GATE || 2000 }}
 
-      - name: Publish to HF Hub (dev = main)
+      - name: Publish to HF Hub
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
