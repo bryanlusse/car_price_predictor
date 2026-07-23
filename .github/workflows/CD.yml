@@ -32,25 +32,18 @@ jobs:
         # `serving` provides gradio-client for the inference smoke test.
         run: uv sync --extra pipeline --extra serving
 
-      - name: Debug - locate dvc files
-        run: |
-            echo "--- all .dvc files in repo ---"
-            find . -name "*.dvc"
-            echo "--- contents of model_training directory ---"
-            find model_training -maxdepth 3
-
-      # Adjust to however you're sourcing data -- `dvc pull` if using DVC,
-      # or a download step for the Kaggle-sourced bootstrap dataset.
       - name: Fetch training data
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
-          mkdir -p data/processed
-          uv run dvc pull model_training/data/processed/autoscout24_dataset_20251108.csv.dvc
+          uv run dvc pull model_training/data/autoscout24_dataset_20251108.csv.dvc
 
       - name: Train, evaluate, and gate
         run: |
           uv run python -m model_training.train \
             --config model_training/champion.yaml \
-            --data-path model_training/data/processed/autoscout24_dataset_20251108.csv \
+            --data-path model_training/data/autoscout24_dataset_20251108.csv \
             --output-dir artifacts/model \
             --rmse-gate ${{ vars.RMSE_GATE || 2000 }}
 
