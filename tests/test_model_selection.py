@@ -178,17 +178,23 @@ def test_different_model_types_produce_different_predictions(tmp_path):
 
 
 def test_parse_args_defaults_to_linear_regression():
-    config = _parse_args([])
+    config, rmse_gate = _parse_args([])
     assert config.model_type == "linear_regression"
     assert config.model_params == {}
+    assert rmse_gate is None
 
 
 def test_parse_args_reads_model_type_and_params():
-    config = _parse_args(
+    config, _ = _parse_args(
         ["--model-type", "random_forest", "--model-params", '{"n_estimators": 50, "max_depth": 4}']
     )
     assert config.model_type == "random_forest"
     assert config.model_params == {"n_estimators": 50, "max_depth": 4}
+
+
+def test_parse_args_reads_rmse_gate():
+    _, rmse_gate = _parse_args(["--rmse-gate", "1500"])
+    assert rmse_gate == 1500.0
 
 
 def test_parse_args_rejects_unknown_model_type():

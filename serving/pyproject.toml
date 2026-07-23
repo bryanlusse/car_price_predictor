@@ -1,0 +1,27 @@
+# Dependencies for the HF Space, resolved with uv. Only this folder is uploaded to the
+# Space (see the CD workflow), so the Space's runtime contract lives here rather than in
+# the repo-root pyproject.toml.
+#
+# `package = false` marks this a non-packaged ("virtual") project: uv installs the
+# dependencies below but does not try to build/install app.py & predictor.py themselves
+# (they run flat on the Space).
+#
+# scikit-learn is pinned to the version the model was trained with (see the model's
+# metadata.json) -- unpickling a Pipeline across sklearn minor versions can warn or,
+# worse, silently misbehave.
+[project]
+name = "car-price-predictor-serving"
+version = "0.1.0"
+description = "HF Space serving app for the car price predictor."
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "gradio>=5,<6",
+    "scikit-learn>=1.9,<1.10",
+    "joblib>=1.3",
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "huggingface-hub>=1.24.0",
+]
+
+[tool.uv]
+package = false

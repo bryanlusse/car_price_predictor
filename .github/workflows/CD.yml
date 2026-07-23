@@ -1,0 +1,94 @@
+name: CD - Train & deploy to dev
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/training/**"
+      - "src/registry/publish.py"
+      - "src/serving/**"
+      - "data/**"
+  workflow_dispatch: {}
+
+jobs:
+  train-and-publish:
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Set Variable
+        uses: deep-mm/set-variables@v1.0
+        with:
+            variableFileName: 'variables'
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        # `pipeline` provides mlflow/dvc/huggingface-hub for train+publish+deploy;
+        # `serving` provides gradio-client for the inference smoke test.
+        run: uv sync --extra pipeline --extra serving
+
+      # Adjust to however you're sourcing data -- `dvc pull` if using DVC,
+      # or a download step for the Kaggle-sourced bootstrap dataset.
+      - name: Fetch training data
+        run: |
+          mkdir -p data/processed
+          # e.g.: dvc pull data/processed/cars.csv
+
+      - name: Train, evaluate, and gate
+        run: |
+          python -m model_training.train \
+            --config model_training/champion.yaml \
+            --data-path data/processed/cars.csv \
+            --output-dir artifacts/model \
+            --rmse-gate ${{ vars.RMSE_GATE || 2000 }}
+
+      - name: Publish to HF Hub (dev = main)
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python -m model_registry.publish \
+            --model-dir artifacts/model \
+            --repo-id ${{ vars.HF_MODEL_REPO_ID }}
+
+      - name: Deploy serving app to dev Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE_DEV_REPO_ID: ${{ vars.HF_SPACE_DEV_REPO_ID }}
+        run: |
+          uv run python - <<'PY'
+          import os
+          from huggingface_hub import HfApi
+
+          api = HfApi(token=os.environ["HF_TOKEN"])
+          repo_id = os.environ["HF_SPACE_DEV_REPO_ID"]
+
+          # Create the Space on first deploy (no-op if it already exists). space_sdk
+          # must be set on creation; the sdk/version in serving/README.md governs it
+          # thereafter.
+          api.create_repo(
+              repo_id=repo_id,
+              repo_type="space",
+              space_sdk="gradio",
+              exist_ok=True,
+          )
+          api.upload_folder(
+              folder_path="serving",
+              repo_id=repo_id,
+              repo_type="space",
+              commit_message="Deploy latest serving app to dev",
+              ignore_patterns=["__pycache__/*", "*.pyc", "__init__.py"],
+          )
+          api.restart_space(repo_id=repo_id)
+          PY
+
+      - name: Smoke-test dev inference
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          uv run python -m inference.client \
+            --space-repo-id ${{ vars.HF_SPACE_DEV_REPO_ID }} \
+            --wait-healthy

@@ -18,7 +18,7 @@ import inspect
 import json
 import logging
 import sys
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -223,80 +223,102 @@ def train(config: TrainingConfig) -> dict:
     return {"model_path": str(model_path), "metrics": metrics, "metadata": metadata}
 
 
-def _parse_args(argv: list[str] | None = None) -> TrainingConfig:
-    defaults = TrainingConfig()
-    parser = argparse.ArgumentParser(description="Train the car-price linear-regression model.")
+def _parse_args(argv: list[str] | None = None) -> tuple[TrainingConfig, float | None]:
+    parser = argparse.ArgumentParser(description="Train a car-price model.")
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help="Path to a YAML champion config (model_type, model_params, frozen data "
+        "knobs). This is the single source of truth CD trains from. Any flag below "
+        "overrides the corresponding field for ad-hoc runs.",
+    )
+    # Overridable fields default to None so we can tell 'not passed' from an explicit
+    # value: a passed flag wins over the --config file, which wins over dataclass defaults.
     parser.add_argument(
         "--data-path",
         type=Path,
-        default=defaults.data_path,
+        default=None,
         help="Path to the raw AutoScout24 CSV. Must be present locally "
         "(run `dvc pull` first if it isn't).",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=defaults.output_dir,
+        default=None,
         help="Directory to write model.joblib, metrics.json, and metadata.json into. "
         "Created if it doesn't exist.",
     )
     parser.add_argument(
         "--test-size",
         type=float,
-        default=defaults.test_size,
+        default=None,
         help="Fraction of rows held out for the test split, e.g. 0.2 = 20%% test / 80%% train.",
     )
     parser.add_argument(
         "--random-state",
         type=int,
-        default=defaults.random_state,
+        default=None,
         help="Seed controlling the train/test split and, where supported, the model's "
         "own randomness (e.g. RandomForestRegressor). Fix this to keep runs reproducible.",
     )
     parser.add_argument(
         "--currency",
-        default=defaults.currency,
+        default=None,
         help="Only listings priced in this currency are kept (the raw dataset mixes a few).",
     )
     parser.add_argument(
         "--min-price",
         type=float,
-        default=defaults.min_price,
+        default=None,
         help="Drop listings priced below this (guards against broken/placeholder prices).",
     )
     parser.add_argument(
         "--max-price",
         type=float,
-        default=defaults.max_price,
+        default=None,
         help="Drop listings priced above this (guards against extreme outliers).",
     )
     parser.add_argument(
         "--model-type",
         type=str,
-        default=defaults.model_type,
+        default=None,
         choices=sorted(MODEL_REGISTRY),
         help="Which estimator to train. See MODEL_REGISTRY for the full mapping.",
     )
     parser.add_argument(
         "--model-params",
         type=json.loads,
-        default=defaults.model_params,
+        default=None,
         help="Hyperparameters for the chosen --model-type, as a JSON object, e.g. "
         '\'{"alpha": 1.0}\' for ridge/lasso or \'{"n_estimators": 300, "max_depth": 8}\' '
         "for the tree ensembles. Unset params fall back to sklearn's own defaults.",
     )
-    args = parser.parse_args(argv)
-    return TrainingConfig(
-        data_path=args.data_path,
-        output_dir=args.output_dir,
-        test_size=args.test_size,
-        random_state=args.random_state,
-        currency=args.currency,
-        min_price=args.min_price,
-        max_price=args.max_price,
-        model_type=args.model_type,
-        model_params=args.model_params,
+    parser.add_argument(
+        "--rmse-gate",
+        type=float,
+        default=None,
+        help="If set, exit non-zero when test RMSE exceeds this value -- lets a CD "
+        "pipeline block a regression from being published. Unset = no gate.",
     )
+    args = parser.parse_args(argv)
+
+    base = TrainingConfig.from_file(args.config) if args.config else TrainingConfig()
+    overridable = (
+        "data_path",
+        "output_dir",
+        "test_size",
+        "random_state",
+        "currency",
+        "min_price",
+        "max_price",
+        "model_type",
+        "model_params",
+    )
+    overrides = {
+        name: getattr(args, name) for name in overridable if getattr(args, name) is not None
+    }
+    return replace(base, **overrides), args.rmse_gate
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -305,13 +327,18 @@ def main(argv: list[str] | None = None) -> int:
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
-    config = _parse_args(argv)
+    config, rmse_gate = _parse_args(argv)
     try:
         result = train(config)
     except Exception:
         logger.exception("Training failed")
         return 1
     print(json.dumps(result["metrics"], indent=2))
+
+    test_rmse = result["metrics"]["test"]["rmse"]
+    if rmse_gate is not None and test_rmse > rmse_gate:
+        logger.error("Quality gate failed: test RMSE %.2f > gate %.2f", test_rmse, rmse_gate)
+        return 1
     return 0
 
 

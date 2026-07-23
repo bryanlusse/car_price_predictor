@@ -97,5 +97,38 @@ def test_read_raw_missing_file_raises():
         _read_raw(config)
 
 
+def test_main_passes_when_gate_unset(tmp_path):
+    from model_training.train import main
+
+    data_path = tmp_path / "raw.csv"
+    _make_raw_frame(300).to_csv(data_path, index=False)
+
+    exit_code = main(["--data-path", str(data_path), "--output-dir", str(tmp_path / "models")])
+
+    assert exit_code == 0
+
+
+def test_main_fails_when_rmse_exceeds_gate(tmp_path):
+    from model_training.train import main
+
+    data_path = tmp_path / "raw.csv"
+    _make_raw_frame(300).to_csv(data_path, index=False)
+
+    # Synthetic data is random noise w.r.t. price, so RMSE will be large --
+    # an impossibly tight gate should reliably fail it.
+    exit_code = main(
+        [
+            "--data-path",
+            str(data_path),
+            "--output-dir",
+            str(tmp_path / "models"),
+            "--rmse-gate",
+            "0.01",
+        ]
+    )
+
+    assert exit_code == 1
+
+
 def tmp_missing():
     return TrainingConfig().output_dir / "does-not-exist.csv"
