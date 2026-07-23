@@ -78,6 +78,7 @@ jobs:
               repo_id=repo_id,
               repo_type="space",
               space_sdk="gradio",
+              space_hardware="zero-a10g",
               exist_ok=True,
           )
           api.upload_folder(
