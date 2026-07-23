@@ -32,6 +32,13 @@ jobs:
         # `serving` provides gradio-client for the inference smoke test.
         run: uv sync --extra pipeline --extra serving
 
+      - name: Debug - locate dvc files
+        run: |
+            echo "--- all .dvc files in repo ---"
+            find . -name "*.dvc"
+            echo "--- contents of model_training directory ---"
+            find model_training -maxdepth 3
+
       # Adjust to however you're sourcing data -- `dvc pull` if using DVC,
       # or a download step for the Kaggle-sourced bootstrap dataset.
       - name: Fetch training data
