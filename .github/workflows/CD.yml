@@ -37,13 +37,13 @@ jobs:
       - name: Fetch training data
         run: |
           mkdir -p data/processed
-          # e.g.: dvc pull data/processed/cars.csv
+          uv run dvc pull model_training/data/processed/autoscout24_dataset_20251108.csv.dvc
 
       - name: Train, evaluate, and gate
         run: |
           uv run python -m model_training.train \
             --config model_training/champion.yaml \
-            --data-path data/processed/cars.csv \
+            --data-path model_training/data/processed/autoscout24_dataset_20251108.csv \
             --output-dir artifacts/model \
             --rmse-gate ${{ vars.RMSE_GATE || 2000 }}
 
