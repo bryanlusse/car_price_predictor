@@ -15,11 +15,12 @@ jobs:
     runs-on: ubuntu-latest
     environment: dev
     steps:
+      - uses: actions/checkout@v4
+
       - name: Set Variable
         uses: deep-mm/set-variables@v1.0
         with:
-            variableFileName: 'variables'
-      - uses: actions/checkout@v4
+          variableFileName: 'variables'
 
       - name: Install uv
         uses: astral-sh/setup-uv@v6
