@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
+from dataclasses import fields as dataclass_fields
 from pathlib import Path
 from typing import Any
 
@@ -97,6 +98,39 @@ class TrainingConfig:
 
     # Rare-category collapsing for the one-hot encoder (keeps make/model dimensionality sane).
     min_category_frequency: float = 0.01
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> TrainingConfig:
+        """Build a config from a plain mapping (e.g. a parsed YAML champion file).
+
+        Only fields that differ from the defaults need to be present. Unknown keys are
+        rejected rather than silently ignored, so a typo in the champion config fails
+        the run instead of quietly training the wrong thing.
+        """
+        if not isinstance(data, dict):
+            raise TypeError("Config must be a mapping of field -> value.")
+        known = {f.name for f in dataclass_fields(cls)}
+        unknown = set(data) - known
+        if unknown:
+            raise ValueError(
+                f"Unknown config keys {sorted(unknown)}; valid keys are {sorted(known)}."
+            )
+        kwargs = dict(data)
+        for path_field in ("data_path", "output_dir"):
+            if kwargs.get(path_field) is not None:
+                kwargs[path_field] = Path(kwargs[path_field])
+        return cls(**kwargs)
+
+    @classmethod
+    def from_file(cls, path: str | Path) -> TrainingConfig:
+        """Load a champion config from a YAML file (the single source of truth for CD)."""
+        import yaml  # lazy: only needed when a --config file is actually used
+
+        path = Path(path)
+        if not path.exists():
+            raise FileNotFoundError(f"Config file not found: {path}")
+        data = yaml.safe_load(path.read_text()) or {}
+        return cls.from_dict(data)
 
     @property
     def feature_columns(self) -> list[str]:

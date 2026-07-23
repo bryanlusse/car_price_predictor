@@ -1,0 +1,16 @@
+{
+  "variables": [
+    {
+      "name": "RMSE_GATE",
+      "value": "16000"
+    },
+    {
+      "name": "HF_MODEL_REPO_ID",
+      "value": "blusse7/car-price-predictor"
+    },
+    {
+      "name": "HF_SPACE_DEV_REPO_ID",
+      "value": "blusse7/car-price-predictor"
+    }
+  ]
+}
