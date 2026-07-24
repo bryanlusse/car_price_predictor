@@ -21,6 +21,7 @@ import os
 from itertools import islice
 
 import gradio as gr
+import spaces
 
 try:  # local package layout (tests, `python -m serving.app`)
     from serving.predictor import (
@@ -108,6 +109,17 @@ def _chunk(items: list, size: int):
     it = iter(items)
     while chunk := list(islice(it, size)):
         yield chunk
+
+
+@spaces.GPU(duration=1)
+def _zerogpu_warmup() -> None:
+    """No-op to satisfy ZeroGPU's startup requirement.
+
+    This app runs a CPU-only scikit-learn pipeline and never needs GPU access,
+    but ZeroGPU Spaces refuse to start unless at least one @spaces.GPU function
+    is defined. This function is never called.
+    """
+    return None
 
 
 def build_demo(pipeline, spec: FeatureSpec) -> gr.Blocks:
