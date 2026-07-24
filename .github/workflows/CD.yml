@@ -4,9 +4,9 @@ on:
   push:
     branches: [main]
     paths:
-      - "src/training/**"
-      - "src/registry/publish.py"
-      - "src/serving/**"
+      - "model_training/**"
+      - "model_registry/**"
+      - "serving/**"
       - "data/**"
   workflow_dispatch: {}
 
