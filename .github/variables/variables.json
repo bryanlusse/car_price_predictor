@@ -11,6 +11,10 @@
     {
       "name": "HF_SPACE_DEV_REPO_ID",
       "value": "blusse7/car-price-predictor"
+    },
+    {
+      "name": "MLFLOW_S3_ENDPOINT_URL",
+      "value": "https://0ddc8646904df218d27d6d20a3b9ed34.r2.cloudflarestorage.com"
     }
   ]
 }

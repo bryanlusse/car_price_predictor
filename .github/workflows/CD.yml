@@ -15,11 +15,12 @@ jobs:
     runs-on: ubuntu-latest
     environment: dev
     steps:
+      - uses: actions/checkout@v4
+
       - name: Set Variable
         uses: deep-mm/set-variables@v1.0
         with:
-            variableFileName: 'variables'
-      - uses: actions/checkout@v4
+          variableFileName: 'variables'
 
       - name: Install uv
         uses: astral-sh/setup-uv@v6
@@ -31,33 +32,37 @@ jobs:
         # `serving` provides gradio-client for the inference smoke test.
         run: uv sync --extra pipeline --extra serving
 
-      # Adjust to however you're sourcing data -- `dvc pull` if using DVC,
-      # or a download step for the Kaggle-sourced bootstrap dataset.
       - name: Fetch training data
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
-          mkdir -p data/processed
-          # e.g.: dvc pull data/processed/cars.csv
+          uv run dvc pull model_training/data/autoscout24_dataset_20251108.csv.dvc
 
       - name: Train, evaluate, and gate
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          MLFLOW_S3_ENDPOINT_URL: ${{ env.MLFLOW_S3_ENDPOINT_URL }}
         run: |
-          python -m model_training.train \
+          uv run python -m model_training.train \
             --config model_training/champion.yaml \
-            --data-path data/processed/cars.csv \
+            --data-path model_training/data/autoscout24_dataset_20251108.csv \
             --output-dir artifacts/model \
-            --rmse-gate ${{ vars.RMSE_GATE || 2000 }}
+            --rmse-gate ${{ env.RMSE_GATE || 2000 }}
 
-      - name: Publish to HF Hub (dev = main)
+      - name: Publish to HF Hub
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          python -m model_registry.publish \
+          uv run python -m model_registry.publish \
             --model-dir artifacts/model \
-            --repo-id ${{ vars.HF_MODEL_REPO_ID }}
+            --repo-id ${{ env.HF_MODEL_REPO_ID }}
 
       - name: Deploy serving app to dev Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HF_SPACE_DEV_REPO_ID: ${{ vars.HF_SPACE_DEV_REPO_ID }}
+          HF_SPACE_DEV_REPO_ID: ${{ env.HF_SPACE_DEV_REPO_ID }}
         run: |
           uv run python - <<'PY'
           import os
@@ -73,6 +78,7 @@ jobs:
               repo_id=repo_id,
               repo_type="space",
               space_sdk="gradio",
+              space_hardware="zero-a10g",
               exist_ok=True,
           )
           api.upload_folder(
@@ -90,5 +96,5 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           uv run python -m inference.client \
-            --space-repo-id ${{ vars.HF_SPACE_DEV_REPO_ID }} \
+            --space-repo-id ${{ env.HF_SPACE_DEV_REPO_ID }} \
             --wait-healthy

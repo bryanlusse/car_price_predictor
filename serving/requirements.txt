@@ -1,0 +1,12 @@
+# Dependencies for the HF Space. Only this folder is uploaded to the Space (see the
+# CD workflow), so the Space's runtime contract lives here rather than in the
+# repo-root pyproject.toml.
+#
+# scikit-learn is pinned to the version the model was trained with (see the model's
+# metadata.json) -- unpickling a Pipeline across sklearn minor versions can warn or,
+# worse, silently misbehave.
+scikit-learn==1.7.2
+joblib>=1.3
+pandas>=2.0
+numpy>=1.24
+huggingface-hub>=1.24.0
