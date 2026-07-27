@@ -22,6 +22,7 @@ from dataclasses import asdict, replace
 from datetime import datetime, timezone
 from pathlib import Path
 
+import dagshub
 import joblib
 import mlflow
 import numpy as np
@@ -45,6 +46,7 @@ from model_training.config import (
 )
 
 logger = logging.getLogger("car_price_predictor.train")
+mlflow.set_tracking_uri("https://dagshub.com/bryanlusse/car_price_predictor.mlflow")
 
 MODEL_REGISTRY: dict[str, type] = {
     "linear_regression": LinearRegression,
@@ -182,6 +184,7 @@ def train(config: TrainingConfig) -> dict:
         X, y, test_size=config.test_size, random_state=config.random_state
     )
 
+    dagshub.init(repo_owner="bryanlusse", repo_name="car_price_predictor", mlflow=True)
     experiment_id = _get_or_create_experiment(MLFLOW_EXPERIMENT_NAME, MLFLOW_ARTIFACT_URI)
     with mlflow.start_run(experiment_id=experiment_id):
         mlflow.log_params({k: str(v) for k, v in asdict(config).items()})

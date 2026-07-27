@@ -44,6 +44,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           MLFLOW_S3_ENDPOINT_URL: ${{ env.MLFLOW_S3_ENDPOINT_URL }}
+          DAGSHUB_USER_TOKEN: ${{ secrets.DAGSHUB_USER_TOKEN }}
         run: |
           uv run python -m model_training.train \
             --config model_training/champion.yaml \

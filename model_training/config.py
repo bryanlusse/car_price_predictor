@@ -15,6 +15,8 @@ from dataclasses import fields as dataclass_fields
 from pathlib import Path
 from typing import Any
 
+import mlflow
+
 # MLFlow setup
 MLFLOW_EXPERIMENT_NAME = "car_price_predictor"
 MLFLOW_ARTIFACT_URI = os.environ.get(
@@ -66,6 +68,8 @@ DERIVED_NUMERIC_FEATURES: list[str] = ["vehicle_age_years"]
 # Extra raw columns we need to load for filtering / feature engineering but do not feed
 # to the model directly.
 AUXILIARY_COLUMNS: list[str] = ["price_currency", "registration_date"]
+
+mlflow.set_tracking_uri("https://dagshub.com/bryanlusse/car_price_predictor.mlflow")
 
 
 @dataclass
