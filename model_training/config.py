@@ -10,12 +10,14 @@ code.
 from __future__ import annotations
 
 import os
+import subprocess
 from dataclasses import dataclass, field
 from dataclasses import fields as dataclass_fields
 from pathlib import Path
 from typing import Any
 
 import mlflow
+import yaml
 
 # MLFlow setup
 MLFLOW_EXPERIMENT_NAME = "car_price_predictor"
@@ -144,3 +146,20 @@ class TrainingConfig:
     @property
     def numeric_model_features(self) -> list[str]:
         return self.numeric_features + DERIVED_NUMERIC_FEATURES
+
+
+def _dvc_file_hash(dvc_file: Path) -> str:
+    """Read the content hash DVC is tracking for a given data file."""
+    if not dvc_file.exists():
+        raise FileNotFoundError(
+            f"No .dvc pointer file found at {dvc_file} — has `dvc add` been run on this data?"
+        )
+    meta = yaml.safe_load(dvc_file.read_text())
+    return meta["outs"][0]["md5"]
+
+
+def _current_git_sha() -> str:
+    """Return the current commit SHA, or 'dirty' if there are uncommitted changes."""
+    sha = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode().strip()
+    dirty = subprocess.run(["git", "diff", "--quiet"], check=False).returncode != 0
+    return f"{sha}-dirty" if dirty else sha
