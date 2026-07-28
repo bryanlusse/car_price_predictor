@@ -22,6 +22,7 @@ from dataclasses import asdict, replace
 from datetime import datetime, timezone
 from pathlib import Path
 
+import dagshub
 import joblib
 import mlflow
 import numpy as np
@@ -42,6 +43,8 @@ from model_training.config import (
     MLFLOW_ARTIFACT_URI,
     MLFLOW_EXPERIMENT_NAME,
     TrainingConfig,
+    _current_git_sha,
+    _dvc_file_hash,
 )
 
 logger = logging.getLogger("car_price_predictor.train")
@@ -182,9 +185,20 @@ def train(config: TrainingConfig) -> dict:
         X, y, test_size=config.test_size, random_state=config.random_state
     )
 
+    dagshub.init(repo_owner="bryanlusse", repo_name="car_price_predictor", mlflow=True)
     experiment_id = _get_or_create_experiment(MLFLOW_EXPERIMENT_NAME, MLFLOW_ARTIFACT_URI)
+
+    dvc_hash = _dvc_file_hash(config.data_path.with_suffix(config.data_path.suffix + ".dvc"))
+    git_sha = _current_git_sha()
+
     with mlflow.start_run(experiment_id=experiment_id):
         mlflow.log_params({k: str(v) for k, v in asdict(config).items()})
+        mlflow.set_tags({"dvc_data_hash": dvc_hash, "git_commit": git_sha})
+
+        dataset = mlflow.data.from_pandas(
+            data, source=str(config.data_path), name="autoscout24", digest=dvc_hash
+        )
+        mlflow.log_input(dataset, context="training")
 
         pipeline = build_pipeline(config)
         pipeline.fit(X_train, y_train)

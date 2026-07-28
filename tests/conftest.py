@@ -49,4 +49,16 @@ def isolated_mlflow(tmp_path, monkeypatch):
     # stubbed out to a fast no-op for the unit test suite.
     monkeypatch.setattr(mlflow.sklearn, "log_model", lambda *args, **kwargs: None)
 
+    # train() also calls dagshub.init(), which reaches out to dagshub.com for OAuth --
+    # unit tests must never do that. No-op it entirely.
+    monkeypatch.setattr(train_module.dagshub, "init", lambda **kwargs: None)
+
+    # _dvc_file_hash and _current_git_sha are provenance-tagging helpers that read a
+    # real .dvc pointer file / shell out to git. Test fixtures live under tmp_path and
+    # have neither, so both are stubbed to fixed values -- these tests are checking
+    # that train() calls MLflow correctly, not that DVC/git provenance tagging works
+    # (that's better covered by a small dedicated unit test for those two functions).
+    monkeypatch.setattr(train_module, "_dvc_file_hash", lambda path: "test-dvc-hash")
+    monkeypatch.setattr(train_module, "_current_git_sha", lambda: "test-git-sha")
+
     yield
