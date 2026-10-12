@@ -38,7 +38,9 @@ The app is configured entirely through environment variables (set them as Space 
 
 ## Local run
 
+Inside the `serving` folder, run the following:
+
 ```bash
-uv run --project serving python serving/app.py
+uv run python app.py
 # then open http://localhost:7860
 ```
